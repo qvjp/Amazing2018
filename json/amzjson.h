@@ -18,7 +18,7 @@ typedef enum {
 typedef struct {
   union {
     struct { char* s; size_t len; }s; /* string */
-	double n;                         /* number */
+    double n;                         /* number */
   }u;
   amz_type type;
 } amz_value;
@@ -32,7 +32,9 @@ enum {
   AMZ_PARSE_NUMBER_TOO_BIG,
   AMZ_PARSE_MISS_QUOTATION_MARK,
   AMZ_PARSE_INVALID_STRING_ESCAPE,
-  AMZ_PARSE_INVALID_STRING_CHAR
+  AMZ_PARSE_INVALID_STRING_CHAR,
+  AMZ_PARSE_INVALID_UNICODE_HEX,
+  AMZ_PARSE_INVALID_UNICODE_SURROGATE
 };
 
 /* 初始化类型 */
