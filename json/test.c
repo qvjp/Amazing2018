@@ -43,6 +43,12 @@ static int test_pass = 0;
     amz_free(&v);\
 } while(0);
 
+#if defined(_MSC_VER)
+#define EXPECT_EQ_SIZE_T(expect, actual) EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, "%Iu")
+#else
+#define EXPECT_EQ_SIZE_T(expect, actual) EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, "%zu")
+#endif
+
 static void test_parse_null() {
   amz_value v;
   v.type = AMZ_NULL;
@@ -113,7 +119,7 @@ static void test_parse_string() {
   TEST_STRING("", "\"\"");
   TEST_STRING("HELLO", "\"HELLO\"");
   TEST_STRING("Hello\nWorld", "\"Hello\\nWorld\"");
-  TEST_STRING("屈", "\"\\u5C48\"");
+  TEST_STRING("屈俊平", "\"\\u5C48\\u4FCA\\u5E73\"");
   TEST_STRING("\" \\ / \b \f \n \r \t", "\"\\\" \\\\ \\/ \\b \\f \\n \\r \\t\"");
   TEST_STRING("Hello\0World", "\"Hello\\u0000World\"");
   TEST_STRING("\x24", "\"\\u0024\"");         /* Dollar sign U+0024 */
@@ -121,6 +127,39 @@ static void test_parse_string() {
   TEST_STRING("\xE2\x82\xAC", "\"\\u20AC\""); /* Euro sign U+20AC */
   TEST_STRING("\xF0\x9D\x84\x9E", "\"\\uD834\\uDD1E\"");  /* G clef sign U+1D11E */
   TEST_STRING("\xF0\x9D\x84\x9E", "\"\\ud834\\udd1e\"");  /* G clef sign U+1D11E */
+}
+
+static void test_parse_array() {
+  size_t i, j;
+  amz_value v;
+  amz_init(&v);
+  EXPECT_EQ_INT(AMZ_PARSE_OK, amz_parse(&v, "[ null, false, true, 123, \"abc\" ]"));
+  EXPECT_EQ_INT(AMZ_ARRAY, amz_get_type(&v));
+  EXPECT_EQ_SIZE_T(5, amz_get_array_size(&v));
+  EXPECT_EQ_INT(AMZ_NULL,  amz_get_type(amz_get_array_element(&v, 0)));
+  EXPECT_EQ_INT(AMZ_FALSE, amz_get_type(amz_get_array_element(&v, 1)));
+  EXPECT_EQ_INT(AMZ_TRUE,  amz_get_type(amz_get_array_element(&v, 2)));
+  EXPECT_EQ_INT(AMZ_NUMBER,amz_get_type(amz_get_array_element(&v, 3)));
+  EXPECT_EQ_INT(AMZ_STRING,amz_get_type(amz_get_array_element(&v, 4)));
+  EXPECT_EQ_DOUBLE(123.0, amz_get_number(amz_get_array_element(&v, 3)));
+  EXPECT_EQ_STRING("abc", amz_get_string(amz_get_array_element(&v, 4)), amz_get_string_length(amz_get_array_element(&v, 4)));
+  amz_free(&v);
+
+  amz_init(&v);
+  EXPECT_EQ_INT(AMZ_PARSE_OK, amz_parse(&v, "[ [ ], [ 0 ], [ 0, 1 ], [ 0, 1, 2 ] ]"));
+  EXPECT_EQ_INT(AMZ_ARRAY, amz_get_type(&v));
+  EXPECT_EQ_SIZE_T(4, amz_get_array_size(&v));
+  for (i = 0; i < 4; i++) {
+    amz_value* a = amz_get_array_element(&v, i);
+    EXPECT_EQ_INT(AMZ_ARRAY, amz_get_type(a));
+    EXPECT_EQ_SIZE_T(i, amz_get_array_size(a));
+    for (j = 0; j < i; j++) {
+      amz_value* e = amz_get_array_element(a, j);
+      EXPECT_EQ_INT(AMZ_NUMBER, amz_get_type(e));
+      EXPECT_EQ_DOUBLE((double)j, amz_get_number(e));
+    }
+  }
+  amz_free(&v);
 }
 
 static void test_parse_expect_value() {
@@ -143,6 +182,11 @@ static void test_parse_invalid_value() {
   TEST_ERROR(AMZ_PARSE_INVALID_VALUE, "inf"); 
   TEST_ERROR(AMZ_PARSE_INVALID_VALUE, "NAN"); 
   TEST_ERROR(AMZ_PARSE_INVALID_VALUE, "nan"); 
+#endif
+
+#if 0
+  TEST_ERROR(AMZ_PARSE_INVALID_VALUE, "[1,]");
+  TEST_ERROR(AMZ_PARSE_INVALID_VALUE, "[\"a\", nul]");
 #endif
 }
 
@@ -208,6 +252,15 @@ static void test_parse_invalid_unicode_surrogate() {
   TEST_ERROR(AMZ_PARSE_INVALID_UNICODE_SURROGATE, "\"\\uD800\\uE000\"");
 }
 
+static void test_parse_miss_comma_or_square_bracket() {
+#if 0
+  TEST_ERROR(AMZ_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1");
+  TEST_ERROR(AMZ_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1}");
+  TEST_ERROR(AMZ_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[1 2");
+  TEST_ERROR(AMZ_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[[]");
+#endif
+}
+
 static void tset_access_null() {
   amz_value v;
   amz_init(&v);
@@ -251,6 +304,7 @@ static void test_parse() {
   test_parse_false();
   test_parse_number();  
   test_parse_string();
+  test_parse_array();
   test_parse_expect_value();
   test_parse_invalid_value();
   test_parse_root_not_singular();
@@ -260,6 +314,7 @@ static void test_parse() {
   test_parse_invalid_string_char();
   test_parse_invalid_unicode_hex();
   test_parse_invalid_unicode_surrogate();
+  test_parse_miss_comma_or_square_bracket();
 
   tset_access_null();
   test_access_boolean();

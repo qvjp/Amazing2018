@@ -190,6 +190,53 @@ static int amz_parse_string(amz_context* c, amz_value* v) {
   }
 }
 
+static int amz_parse_value(amz_context* c, amz_value* v); /* 向前声明 */
+
+/* array = %x5B ws [ value *( ws %x2C ws value ) ] ws %x5D */
+static int amz_parse_array(amz_context* c, amz_value* v) {
+  size_t i, size = 0;
+  int ret;
+  EXPECT(c, '[');
+  amz_parse_whitespace(c);
+  if (*c->json == ']') {
+    c->json++;
+    v->type = AMZ_ARRAY;
+    v->u.a.size = 0;
+    v->u.a.e = NULL;
+    return AMZ_PARSE_OK;
+  }
+  for (;;) {
+    amz_value e;
+    amz_init(&e);
+    if ((ret = amz_parse_value(c, &e)) != AMZ_PARSE_OK)
+      break;
+    memcpy(amz_context_push(c, sizeof(amz_value)), &e, sizeof(amz_value));
+    size++;
+    amz_parse_whitespace(c);
+    if (*c->json == ',')
+    {
+      c->json++;
+      amz_parse_whitespace(c);
+    }
+    else if (*c->json == ']') {
+      c->json++;
+      v->type = AMZ_ARRAY;
+      v->u.a.size = size;
+      size *= sizeof(amz_value);
+      memcpy(v->u.a.e = (amz_value*)malloc(size), amz_context_pop(c, size), size);
+      return AMZ_PARSE_OK;
+    }
+    else
+    {
+      ret = AMZ_PARSE_MISS_COMMA_OR_SQUARE_BRACKET;
+      break;
+    }
+  }
+  for (i = 0; i < size; i++)
+      amz_free((amz_value*)amz_context_pop(c, sizeof(amz_value)));
+  return ret;
+}
+
 /* value = null / false / true / number*/
 static int amz_parse_value(amz_context* c, amz_value* v) {
   switch (*c->json) {
@@ -198,6 +245,7 @@ static int amz_parse_value(amz_context* c, amz_value* v) {
     case 'n':  return amz_parse_literal(c, v, "null", AMZ_NULL);
     default:   return amz_parse_number(c, v);
     case '"':  return amz_parse_string(c, v);
+    case '[':  return amz_parse_array(c, v);
     case '\0': return AMZ_PARSE_EXPECT_VALUE;
   }
 }
@@ -225,9 +273,19 @@ int amz_parse(amz_value* v, const char* json) {
 }
 
 void amz_free(amz_value* v) {
+  size_t i;
   assert(v != NULL);
-  if (v->type == AMZ_STRING)
-    free(v->u.s.s);
+  switch (v->type) {
+    case AMZ_STRING:
+      free(v->u.s.s);
+      break;
+    case AMZ_ARRAY:
+      for (i = 0; i < v->u.a.size; i++)
+        amz_free(&v->u.a.e[i]);
+      free(v->u.a.e);
+      break;
+    default: break;
+  }
   v->type = AMZ_NULL;
 }
 
@@ -275,4 +333,15 @@ void amz_set_string(amz_value* v, const char* s, size_t len) {
   v->u.s.s[len] = '\0';
   v->u.s.len = len;
   v->type = AMZ_STRING;
+}
+
+size_t amz_get_array_size(const amz_value* v) {
+  assert(v != NULL && v->type == AMZ_ARRAY);
+  return v->u.a.size;
+}
+
+amz_value* amz_get_array_element(const amz_value* v, size_t index) {
+  assert(v != NULL && v->type == AMZ_ARRAY);
+  assert(index < v->u.a.size);
+  return &v->u.a.e[index];
 }
