@@ -135,9 +135,9 @@ static void amz_encode_utf8(amz_context* c, unsigned u) {
    }
 }
 
-static int amz_parse_string(amz_context* c, amz_value* v) {
+static int amz_parse_string_raw(amz_context* c, char** str, size_t* len) {
   unsigned u, u2;
-  size_t head = c->top, len;
+  size_t head = c->top;
   const char* p;
   EXPECT(c, '\"');
   p = c->json;
@@ -145,8 +145,8 @@ static int amz_parse_string(amz_context* c, amz_value* v) {
     char ch = *p++;
     switch (ch) {
       case '\"':
-        len = c->top - head;
-        amz_set_string(v, (const char*)amz_context_pop(c, len), len);
+        *len = c->top - head;
+        *str = amz_context_pop(c, *len);
         c->json = p;
         return AMZ_PARSE_OK;
       case '\0':
@@ -188,6 +188,15 @@ static int amz_parse_string(amz_context* c, amz_value* v) {
       PUTC(c, ch);
     }
   }
+}
+
+static int amz_parse_string(amz_context* c, amz_value* v) {
+  int ret;
+  char* s;
+  size_t len;
+  if ((ret = amz_parse_string_raw(c, &s, &len)) == AMZ_PARSE_OK)
+    amz_set_string(v, s, len);
+  return ret;
 }
 
 static int amz_parse_value(amz_context* c, amz_value* v); /* 向前声明 */
@@ -237,6 +246,77 @@ static int amz_parse_array(amz_context* c, amz_value* v) {
   return ret;
 }
 
+static int amz_parse_object(amz_context* c, amz_value* v) {
+  size_t i, size;
+  amz_member m;
+  int ret;
+  EXPECT(c, '{');
+  amz_parse_whitespace(c);
+  if (*c->json == '}') {
+    c->json++;
+    v->type = AMZ_OBJECT;
+    v->u.o.m = 0;
+    v->u.o.size = 0;
+    return AMZ_PARSE_OK;
+  }
+  m.k = NULL;
+  size = 0;
+  for (;;) {
+    char* str;
+    amz_init(&m.v);
+    /* 解析key */
+    if (*c->json != '"') {
+      ret = AMZ_PARSE_MISS_KEY;
+      break;
+    }
+    if ((ret = amz_parse_string_raw(c, &str, &m.klen)) != AMZ_PARSE_OK)
+        break;
+    memcpy(m.k = (char*)malloc(m.klen + 1), str, m.klen);
+    m.k[m.klen] = '\0';
+    /* 解析ws colon ws */
+    amz_parse_whitespace(c);
+    if (*c->json != ':') {
+      ret = AMZ_PARSE_MISS_COLON;
+      break;
+    }
+    c->json++;
+    amz_parse_whitespace(c);
+    /* 解析value */
+    if ((ret = amz_parse_value(c, &m.v)) != AMZ_PARSE_OK)
+        break;
+    memcpy(amz_context_push(c, sizeof(amz_member)), &m, sizeof(amz_member));
+    size++;
+    m.k = NULL;
+    /* 解析ws [comma | right-curly-brace] ws */
+    amz_parse_whitespace(c);
+    if (*c->json == ',') {
+      c->json++;
+      amz_parse_whitespace(c);
+    }
+    else if (*c->json == '}') {
+      size_t s = sizeof(amz_member) * size;
+      c->json++;
+      v->type = AMZ_OBJECT;
+      v->u.o.size = size;
+      memcpy(v->u.o.m = (amz_member*)malloc(s), amz_context_pop(c, s), s);
+      return AMZ_PARSE_OK;
+    }
+    else {
+      ret = AMZ_PARSE_MISS_COMMA_OR_CURLY_BRACKET;
+      break;
+    }
+  }
+  /* Pop and free members on the stack */
+  free(m.k);
+  for (i = 0; i < size; i++) {
+    amz_member* m = (amz_member*)amz_context_pop(c, sizeof(amz_member));
+    free(m->k);
+    amz_free(&m->v);
+  }
+  v->type = AMZ_NULL;
+  return ret;
+}
+
 /* value = null / false / true / number*/
 static int amz_parse_value(amz_context* c, amz_value* v) {
   switch (*c->json) {
@@ -246,6 +326,7 @@ static int amz_parse_value(amz_context* c, amz_value* v) {
     default:   return amz_parse_number(c, v);
     case '"':  return amz_parse_string(c, v);
     case '[':  return amz_parse_array(c, v);
+    case '{':  return amz_parse_object(c, v);
     case '\0': return AMZ_PARSE_EXPECT_VALUE;
   }
 }
@@ -283,6 +364,13 @@ void amz_free(amz_value* v) {
       for (i = 0; i < v->u.a.size; i++)
         amz_free(&v->u.a.e[i]);
       free(v->u.a.e);
+      break;
+    case AMZ_OBJECT:
+      for (i = 0; i < v->u.o.size; i++) {
+        free(v->u.o.m[i].k);
+        amz_free(&v->u.o.m[i].v);
+      }
+      free(v->u.o.m);
       break;
     default: break;
   }
@@ -344,4 +432,27 @@ amz_value* amz_get_array_element(const amz_value* v, size_t index) {
   assert(v != NULL && v->type == AMZ_ARRAY);
   assert(index < v->u.a.size);
   return &v->u.a.e[index];
+}
+
+size_t amz_get_object_size(const amz_value* v) {
+  assert(v != NULL && v->type == AMZ_OBJECT);
+  return v->u.o.size;
+}
+
+const char* amz_get_object_key(const amz_value* v, size_t index) {
+  assert(v != NULL && v->type == AMZ_OBJECT);
+  assert(index < v->u.o.size);
+  return v->u.o.m[index].k;
+}
+
+size_t amz_get_object_key_length(const amz_value* v, size_t index) {
+ assert(v != NULL && v->type == AMZ_OBJECT);
+ assert(index < v->u.o.size);
+ return v->u.o.m[index].klen;
+}
+
+amz_value* amz_get_object_value(const amz_value* v, size_t index) {
+  assert(v != NULL && v->type == AMZ_OBJECT);
+  assert(index < v->u.o.size);
+  return &v->u.o.m[index].v;
 }

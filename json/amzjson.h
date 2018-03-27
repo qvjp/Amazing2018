@@ -15,15 +15,22 @@ typedef enum {
 } amz_type;
 
 typedef struct amz_value amz_value;
+typedef struct amz_member amz_member;
 
 /* JSON数据结构 */
 struct amz_value {
   union {
+    struct { amz_member* m; size_t size; }o;/* object */
     struct { amz_value* e; size_t size; }a; /* array */
     struct { char* s; size_t len; }s;       /* string */
     double n;                               /* number */
   }u;
   amz_type type;
+};
+
+struct amz_member {
+  char* k; size_t klen; /* 对象key，key的长度*/
+  amz_value v;          /* 对象值 */
 };
 
 /* 返回值类型 */
@@ -38,7 +45,10 @@ enum {
   AMZ_PARSE_INVALID_STRING_CHAR,
   AMZ_PARSE_INVALID_UNICODE_HEX,
   AMZ_PARSE_INVALID_UNICODE_SURROGATE,
-  AMZ_PARSE_MISS_COMMA_OR_SQUARE_BRACKET
+  AMZ_PARSE_MISS_COMMA_OR_SQUARE_BRACKET,
+  AMZ_PARSE_MISS_KEY,
+  AMZ_PARSE_MISS_COLON,
+  AMZ_PARSE_MISS_COMMA_OR_CURLY_BRACKET
 };
 
 /* 初始化类型 */
@@ -66,5 +76,10 @@ void amz_set_string(amz_value* v, const char* s, size_t len);
 
 size_t amz_get_array_size(const amz_value* v);
 amz_value* amz_get_array_element(const amz_value* v, size_t index);
+
+size_t amz_get_object_size(const amz_value* v);
+const char* amz_get_object_key(const amz_value* v, size_t index);
+size_t amz_get_object_key_length(const amz_value* v, size_t index);
+amz_value* amz_get_object_value(const amz_value* v, size_t index);
 
 #endif /* AMZJSON_H__ */
