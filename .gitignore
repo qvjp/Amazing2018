@@ -34,3 +34,4 @@
 # Compiled dir
 build/
 .vscode/
+a.out.dSYM/

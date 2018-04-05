@@ -12,7 +12,7 @@
 #include <stdlib.h> // abs();
 
 #define HEIGHT 20
-#define WIDTH 70
+#define WIDTH 60
 
 typedef struct nodeItem nodeItem;
 
@@ -27,6 +27,8 @@ struct nodeItem {
 nodeItem openList[HEIGHT * WIDTH];
 nodeItem closeList[HEIGHT * WIDTH];
 
+nodeItem starNode;
+nodeItem endNode;
 void initListItem(nodeItem* list)
 {
     for (int i = 0; i < HEIGHT * WIDTH; i++)
@@ -81,20 +83,55 @@ void printList(nodeItem* list)
 }
 
 nodeItem map[HEIGHT][WIDTH];
-void initMap()
+int initMap()
 {
-    for (int i = 0; i < HEIGHT; i++)
-        for (int j = 0; j < WIDTH; j++)
+    FILE* mapFp;
+    char ch;
+    if ((mapFp = fopen("map.data", "r")) == NULL)
+    {
+        printf("地图加载错误\n");
+        return 1;
+    }
+    int i = 0;
+    int j = 0;
+    while ((ch = fgetc(mapFp)) != EOF)
+    {
+        if (ch == '\n')
+        {
+            i++;
+            j = 0;
+            continue;
+        }
+        if (ch == '0')
+        {
+            map[i][j].isWall = 1;
+        }
+        if (ch == ' ')
         {
             map[i][j].isWall = 0;
-            map[i][j].x = i;
-            map[i][j].y = j;
-            map[i][j].G = 0;
-            map[i][j].H = -1;
-            map[i][j].F = -1;
-            map[i][j].parent = NULL;
-            map[i][j].isPath = 0;
         }
+        if (ch == '*')
+        {
+            starNode.x = i;
+            starNode.y = j;
+        }
+        if (ch == '#')
+        {
+            endNode.x = i;
+            endNode.y = j;
+        }
+        map[i][j].x = i;
+        map[i][j].y = j;
+        map[i][j].G = 0;
+        map[i][j].H = -1;
+        map[i][j].F = -1;
+        map[i][j].parent = NULL;
+        map[i][j].isPath = 0;
+        j++;
+    }
+    map[starNode.x][starNode.y].isPath = 10;
+    map[endNode.x][endNode.y].isPath = 100;
+    return 0;
 }
 
 int containsNode(nodeItem* list, nodeItem node);
@@ -203,7 +240,6 @@ int containsNode(nodeItem* list, nodeItem node)
 
 int AStarSearch(nodeItem* star, nodeItem* end)
 {
-    star->F = getDistance1(*star, *end);
     addListItem(openList, *star);
     while(countOfList(openList) > 0)
     {
@@ -225,20 +261,20 @@ int AStarSearch(nodeItem* star, nodeItem* end)
         }
         if (containsNode(openList, *end))
         {
-            return 1;
+            for (nodeItem a = *map[endNode.x][endNode.y].parent; a.parent!=NULL; a = *a.parent)
+            {
+                map[a.x][a.y].isPath = 1;
+            }
+            return 1; //success
         }
     }
-    return 0;
+    return 0; //failure
 }
 
 void printNode()
 {
-    // printf("  ");
-    // for (int i = 0; i < WIDTH; i++)
-    // {
-    //     printf("%d", i);
-    // }
-    // printf("\n");
+    printf("\e[34m(Start)(%d %d)\e[32m -> -> -> -> \e[0m", starNode.x, starNode.y);
+    printf("\e[31m(%d %d)(End)\e[0m\n", endNode.x, endNode.y);  
     for (int i = 0; i < HEIGHT; i++)
     {
         for (int j = 0; j < WIDTH; j++)
@@ -246,61 +282,39 @@ void printNode()
             if (map[i][j].isPath)
             {
                 if (map[i][j].isPath == 10) //起点紫色
-                    printf("\e[34m%c\e[0m", '*');
+                    printf("\e[0;34;44m\e[34m%c\e[0m", ' ');
                 else if (map[i][j].isPath == 100)//终点红色
-                    printf("\e[31m%c\e[0m", '*');
+                    printf("\e[0;31;41m\e[31m%c\e[0m", ' ');
                 else                        // 路线 绿色
                     printf("\e[32m%c\e[0m", '*');
             }
             else if(map[i][j].isWall)
                 printf("\e[0;30;40m%c\e[0m", ' ');
             else
-                printf("\e[0m%c", 'O');
+                printf("\e[0m%c", ' ');
         }
         printf("\e[0m\n"); //恢复黑色
     }
-}
-
-void setWall()
-{
-    for (int i = 10; i > 0; i--)
-    {
-        map[i-1][20].isWall = 1;
-        map[i + 8][30].isWall = 1;
-        map[i+10][35].isWall = 1;
-        map[9][i+20].isWall = 1;
-        map[i-1][50].isWall = 1;
-        map[i+8][50].isWall = 1;
-        map[13][50].isWall = 0;
-    }
+    // for (nodeItem a = *map[endNode.x][endNode.y].parent; a.parent!=NULL; a = *a.parent)
+    // {
+    //     printf("(%d %d) <- ", a.x, a.y);
+    //     map[a.x][a.y].isPath = 1;
+    // }
 }
 
 int main(int argc, char** argv)
 {
-    //printf("Welcome to A* (A-Star) Study Room.\n");
     initMap();
-    setWall();
     initListItem(openList);
     initListItem(closeList);
-    nodeItem* starNode = &map[0][0];
-    nodeItem* endNode = &map[19][69];
-    map[starNode->x][starNode->y].isPath = 10;
-    map[endNode->x][endNode->y].isPath = 100;
-    
-    int result = AStarSearch(starNode, endNode);
+
+    int result = AStarSearch(&map[starNode.x][starNode.y], &map[endNode.x][endNode.y]);
     if (!result)
     {
-        printf("result: %d\n", result);
+        printf("Path Not Find. result: %d\n", result);
         return 1;
     }
-    for (nodeItem a = *endNode; a.parent!=NULL; a = *a.parent)
-    {
-        // printf("(%d %d) <- ", a.x, a.y);
-        map[a.x][a.y].isPath = 1;
-    }
-    printf("\e[34m(Start)(%d %d)\e[32m -> -> -> -> \e[0m", starNode->x, starNode->y);
-    printf("\e[31m(%d %d)(End)\e[0m\n", endNode->x, endNode->y);    
-    map[endNode->x][endNode->y].isPath = 100;
+
     printNode();
     return 0;
 }
