@@ -135,3 +135,10 @@ set shiftwidth=4
 hi CursorLine   cterm=NONE ctermbg=white ctermfg=NONE guibg=NONE guifg=NONE
 
 set clipboard=unnamed
+
+set keywordprg=cppman
+
+map td :tabnew .<cr>
+map tn :tabn <cr>
+map tp :tabp <cr>
+map tw :tabc <cr>
