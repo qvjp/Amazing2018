@@ -1,0 +1,10 @@
+{
+    "workbench.startupEditor": "newUntitledFile",
+    "workbench.iconTheme": "material-icon-theme",
+    "material-icon-theme.folders.color": "#42a5f5",
+    "material-icon-theme.opacity": 1,
+    "editor.renderWhitespace": "all",
+    "explorer.confirmDelete": false,
+    "files.autoSave": "onFocusChange",
+    "explorer.confirmDragAndDrop": false
+}
