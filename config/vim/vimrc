@@ -132,7 +132,7 @@ au BufReadPost * if line("'\"") > 0|if line("'\"") <= line("$")|exe("norm '\"")|
 
 set cursorline
 set shiftwidth=4
-hi CursorLine   cterm=NONE ctermbg=247 ctermfg=NONE guibg=NONE guifg=NONE
+hi CursorLine   cterm=NONE ctermbg=white ctermfg=NONE guibg=NONE guifg=NONE
 
 set clipboard=unnamed
 
