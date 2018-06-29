@@ -6,5 +6,8 @@
     "editor.renderWhitespace": "all",
     "explorer.confirmDelete": false,
     "files.autoSave": "onFocusChange",
-    "explorer.confirmDragAndDrop": false
+    "explorer.confirmDragAndDrop": false,
+    "markdown.extension.showExplorer":true,
+    "workbench.editor.labelFormat": "medium",
+    "window.title": "${appName}${separator}${activeEditorMedium}"
 }
