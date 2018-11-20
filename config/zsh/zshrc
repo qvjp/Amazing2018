@@ -146,3 +146,6 @@ do
     alias $filename=$open_command
 done
 IFS=$old_IFS
+
+# Use trash instead of rm, -F Ask Finder to move the files to the trash, instead of using the system API.
+alias rm="trash -F"
