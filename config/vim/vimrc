@@ -198,3 +198,5 @@ hi User6 cterm=None ctermfg=246 ctermbg=237
 hi User7 cterm=None ctermfg=250 ctermbg=238
 hi User8 cterm=None ctermfg=249 ctermbg=240
 
+set encoding=utf-8
+
