@@ -9,5 +9,6 @@
     "explorer.confirmDragAndDrop": false,
     "markdown.extension.showExplorer":true,
     "workbench.editor.labelFormat": "medium",
-    "window.title": "${appName}${separator}${activeEditorMedium}"
+    "window.title": "${appName}${separator}${activeEditorMedium}",
+    "terminal.integrated.shell.osx": "/bin/zsh"
 }
