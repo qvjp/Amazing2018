@@ -46,3 +46,49 @@ echo '$hello'   # $hello
 hello=      # 设置为空值
 echo "\$hello (null value) = $hello"
 # 注意设置一个变量为null，与unset这个变量，并不一样
+# 虽然最终结果一样（具体见下边）
+
+# ------------------------------------------------------------
+
+# 可以在同一行设置多个变量
+# 但是必须以空白进行分割
+# 慎用，这样会降低可读性，并不可移植。
+
+var1=21 var2=22 var3=$V3
+echo
+echo "var1=$var1 var2=$var2 var3=$var3"
+
+# 在老版本的“sh”上可能会有问题
+
+# -----------------------------------------------------------
+
+echo; echo
+
+numbers="one two three"
+other_numbers="1 2 3"
+# 如果在变量中存在空白，那么就必须加上引用
+# other_number2=1 2 3 会报错
+echo "numbers = $numbers"
+echo "other_numbers = $other_numbers"
+
+# 不过也可以采用空白转义的方法
+mixed_bag=2\ ---\ whatever
+echo "$mixed_bag"
+
+echo; echo
+
+echo "uninitialized_variable = $uninitialized_variable"
+# Uninitialized变量为nul
+uninitialized_variable=     # 声明，但没有初始化这个变量
+                            # 其实和前边设置为空值的作用是一样的
+echo "uninitialized_variable = $uninitialized_variable"
+                            # 还是一个空值
+
+uninitialized_variable=23   # 赋值
+echo "uninitialized_variable = $uninitialized_variable"
+unset uninitialized_variable # Unset这个变量
+echo "uninitialized_variable = $uninitialized_variable"
+                            # 还是一个空值
+echo
+
+exit 0

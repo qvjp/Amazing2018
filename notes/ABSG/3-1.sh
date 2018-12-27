@@ -1,7 +1,7 @@
 #!/bin/bash
 # 从/etc/fstab中读行
 
-File=/etc/fstab.hd
+File=/etc/fstab
 
 {
     read line1
