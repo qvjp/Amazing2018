@@ -1,11 +1,13 @@
 #!/bin/bash
 
-E_INSTALL=65    # 安装失败
+E_ERROR=65    # 安装失败
+E_OK=0
 ROOT_UID=0
+
 if [ "$UID"  != "$ROOT_UID" ]
 then
     echo "Only root can run this script!"
-    exit $E_INSTALL
+    exit $E_ERROR
 fi
 
 CURRENT=`pwd`
@@ -39,6 +41,11 @@ PKGINS="yum"
 # 每次执行此脚本都会清空原来的日志文件
 echo "" > $LOG1 > $LOG2
 
+# -p下载常用项目
+if [ "$1" == "-p" ]; then
+    DOWNPRO=DOWNPRO
+fi
+
 # Param0 $?
 # Param1 程序名
 # Param2 程序类型
@@ -49,7 +56,7 @@ CheckStatus()
         echo "$2 $3 Success." 
     else
         echo "$2 $3 Fail."
-        exit $E_INSTALL
+        exit $E_ERROR
     fi
 }
 
@@ -114,7 +121,10 @@ InitCommon()
 
     echo "Necessary tools configuration is complete!"; echo
 
-    # 下载常用项目
+}
+
+DownloadProjects()
+{
     echo; echo "Downloading frequently used projects"
     mkdir -p ~/Programming
     for pro in $PROJECTS
@@ -130,11 +140,11 @@ InitCommon()
 
 LastWords()
 {
-#    echo "最后一步，连接到Github"
-#    # 连接Github
-#    ssh-keygen -t rsa -b 4096 -C "$UEMAIL"
-#    eval "$(ssh-agent -s)"
-#    ssh-add ~/.ssh/id_rsa
+    echo "最后一步，连接到Github"
+    # 连接Github
+    ssh-keygen -t rsa -b 4096 -C "$UEMAIL"
+    eval "$(ssh-agent -s)"
+    ssh-add ~/.ssh/id_rsa
 
     echo
     echo "已全部安装配置完成"
@@ -145,6 +155,11 @@ LastWords()
     echo
 }
 
+# 下载常用项目
+if [ ! -z "$DOWNPRO" ]; then
+    DownloadProjects
+    exit $E_OK
+fi
 
 # 支持macOS, Linux
 case "$OSTYPE" in
@@ -167,7 +182,7 @@ case "$OSTYPE" in
         OS=DARWIN;;
     *)
         echo "Unknown: $OSTYPE"
-        exit $E_INSTALL
+        exit $E_ERROR
 esac
 
 LastWords
