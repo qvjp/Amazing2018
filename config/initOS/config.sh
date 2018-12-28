@@ -1,6 +1,12 @@
 #!/bin/bash
 
 E_INSTALL=65    # 安装失败
+ROOT_UID=0
+if [ "$UID"  != "$ROOT_UID" ]
+then
+    echo "Only root can run this script!"
+    exit $E_INSTALL
+fi
 
 CURRENT=`pwd`
 
@@ -14,13 +20,21 @@ LOG1=$CURRENT/log.log
 LOG2=$CURRENT/err.log
 
 # 必要工具
-NEC_TOOLS="wget cloc vim git zsh tree"
+NEC_TOOLS="wget cloc vim git zsh tree icdiff"
 
 # 常用项目
 PROJECTS="INLOW Amazing2018 Playground"
+
 # Git 配置所用邮箱
 UEMAIL="qvjunping@gmail.com"
 UNAME="Qv Junping"
+
+# Operating System
+OS=DARWIN
+
+# Linux Distro
+DistroBasedOn="RadHat"
+PKGINS="yum"
 
 # 每次执行此脚本都会清空原来的日志文件
 echo "" > $LOG1 > $LOG2
@@ -51,16 +65,20 @@ InitDarwin()
 
 InitLinux()
 {
+    if [ "$DistroBasedOn" = "Debian" ]; then
+        PKGINS="apt-get"
+    elif [ "$DistroBasedOn" = "RedHat" ]; then
+        PKGINS="yum"
+    elif [" $DistroBasedOn" = "SuSe" ]; then
+        PKGINS="zypper"
+    fi
     # 必要工具
     echo "Initializing..."
     echo; echo "Installding necessary tools"
     echo "Installing $NEC_TOOLS"
-    yum install $NEC_TOOLS -y 1>>$LOG1 2>>$LOG2
+    $PKGINS install $NEC_TOOLS -y 1>>$LOG1 2>>$LOG2
     CheckStatus "$?" "yum install $NEC_TOOLS" "$I_NSTALL"
     echo "Necessary tools install is complete!"; echo
-
-
-
 }
 
 InitCommon()
@@ -68,8 +86,10 @@ InitCommon()
     echo; echo "Configuring necessary tools"
     # 配置zsh，并将zsh作为默认shell
     echo "Configuring zsh"
-    wget -c https://raw.githubusercontent.com/qvjp/Amazing2018/master/config/zsh/zshrc -O ~/.zshrc 1>>$LOG1 2>>$LOG2
-    CheckStatus "$?" "zshrc" "$D_OWNLOAD"
+    if [ ! -f ~/.zshrc ]; then
+        wget -c https://raw.githubusercontent.com/qvjp/Amazing2018/master/config/zsh/zshrc -O ~/.zshrc 1>>$LOG1 2>>$LOG2
+        CheckStatus "$?" "zshrc" "$D_OWNLOAD"
+    fi
     chsh -s /bin/zsh 1>>$LOG1 2>>$LOG2
     CheckStatus "$?" "chsh -s /bin/zsh" "$U_PDATE"
 
@@ -80,9 +100,9 @@ InitCommon()
         CheckStatus "$?" "vimrc" "$D_OWNLOAD"
     fi
     # vim插件目录
-    DIR_VIM_PLUGINS="~/.vim/pack/git-plugins/start"
-    mkdir -p $DIR_VIM_PLUGINS 2>>$LOG2
+    DIR_VIM_PLUGINS=~/.vim/pack/git-plugins/start
     if [ ! -d $DIR_VIM_PLUGINS ]; then
+        mkdir -p "$DIR_VIM_PLUGINS" 2>>$LOG2
         git clone https://github.com/w0rp/ale.git ~/.vim/pack/git-plugins/start/ale 1>>$LOG1 2>>$LOG2
         CheckStatus "$?" "ale" "$D_OWNLOAD"
     fi
@@ -93,7 +113,6 @@ InitCommon()
     git config --global user.name "$UNAME"
 
     echo "Necessary tools configuration is complete!"; echo
-
 
     # 下载常用项目
     echo; echo "Downloading frequently used projects"
@@ -111,11 +130,11 @@ InitCommon()
 
 LastWords()
 {
-    echo "最后一步，连接到Github"
-    # 连接Github
-    ssh-keygen -t rsa -b 4096 -C "$UEMAIL"
-    eval "$(ssh-agent -s)"
-    ssh-add ~/.ssh/id_rsa
+#    echo "最后一步，连接到Github"
+#    # 连接Github
+#    ssh-keygen -t rsa -b 4096 -C "$UEMAIL"
+#    eval "$(ssh-agent -s)"
+#    ssh-add ~/.ssh/id_rsa
 
     echo
     echo "已全部安装配置完成"
@@ -128,10 +147,16 @@ LastWords()
 
 
 # 支持macOS, Linux
-OS=DARWIN
 case "$OSTYPE" in
     linux* )
-        echo "Your Operating system is Linux"
+        if [ -f /etc/redhat-release ]; then
+            DistroBasedOn="RedHat"
+        elif [ -f /etc/debian_version ]; then
+            DistroBasedOn="Debian"
+        elif [ -f /etc/SuSE-release ]; then
+            DistroBasedOn="SuSe"
+        fi
+        echo "Your Operating system is $DistroBasedOn Based Linux"
         InitLinux
         InitCommon
         OS=LINUX;;
@@ -142,6 +167,7 @@ case "$OSTYPE" in
         OS=DARWIN;;
     *)
         echo "Unknown: $OSTYPE"
+        exit $E_INSTALL
 esac
 
 LastWords
