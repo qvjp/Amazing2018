@@ -4,9 +4,9 @@ E_ERROR=65    # 安装失败
 E_OK=0
 ROOT_UID=0
 
-if [ "$UID"  != "$ROOT_UID" ]
+if [ "$UID"  == "$ROOT_UID" ]
 then
-    echo "Only root can run this script!"
+    echo "Only normal user can run this script!"
     exit $E_ERROR
 fi
 
@@ -22,10 +22,10 @@ LOG1=$CURRENT/log.log
 LOG2=$CURRENT/err.log
 
 # 必要工具
-NEC_TOOLS="wget cloc vim git zsh tree icdiff"
+NEC_TOOLS="wget cloc vim git zsh tree icdiff trash"
 
 # 常用项目
-PROJECTS="INLOW Amazing2018 Playground"
+PROJECTS="INLOW Amazing2018 Playground TODO"
 
 # Git 配置所用邮箱
 UEMAIL="qvjunping@gmail.com"
@@ -41,10 +41,6 @@ PKGINS="yum"
 # 每次执行此脚本都会清空原来的日志文件
 echo "" > $LOG1 > $LOG2
 
-# -p下载常用项目
-if [ "$1" == "-p" ]; then
-    DOWNPRO=DOWNPRO
-fi
 
 # Param0 $?
 # Param1 程序名
@@ -62,12 +58,32 @@ CheckStatus()
 
 InitDarwin()
 {
-    # 连接Github
-    ssh-keygen -t rsa -b 4096 -C "qvjunping@gmail.com"
-    eval "$(ssh-agent -s)"
-    echo -e "Host *\n AddKeysToAgent yes\n UseKeychain yes\n IdentityFile ~/.ssh/id_rsa" > ~/.ssh/config
-    ssh-add -K ~/.ssh/id_rsa
-    clip < ~/.ssh/id_rsa.pub
+    echo "init your Mac..."
+
+    softwareupdate -i -a
+    CheckStatus "$?" "softwareupdate" "$U_PDATE"
+
+    #xcode-select --install
+    CheckStatus "$?" "xcode-select" "$I_NSTALL"
+
+    echo "Checking brew..."
+    if [ ! `which brew` ]; then
+        echo "Downloading brew..."
+        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+        CheckStatus "$?" "brew" "$I_NSTALL"
+    fi
+
+    echo "Using brew doweload necessary tools "
+    for tool in $NEC_TOOLS; do
+        echo Checking $tool...
+        if [ ! `which $tool` ]; then
+            echo Downloading $tool
+            brew install $tool
+            CheckStatus "$?" "brew install $NEC_TOOLS" "$I_NSTALL"
+        fi
+    done
+    echo "Necessary tools install is complete!"
+
 }
 
 InitLinux()
@@ -83,68 +99,91 @@ InitLinux()
     echo "Initializing..."
     echo; echo "Installding necessary tools"
     echo "Installing $NEC_TOOLS"
-    $PKGINS install $NEC_TOOLS -y 1>>$LOG1 2>>$LOG2
+    $PKGINS install $NEC_TOOLS -y
     CheckStatus "$?" "yum install $NEC_TOOLS" "$I_NSTALL"
     echo "Necessary tools install is complete!"; echo
 }
 
 InitCommon()
 {
-    echo; echo "Configuring necessary tools"
+    echo =============================
+    echo "Configuring necessary tools"
+    echo =============================
+
     # 配置zsh，并将zsh作为默认shell
-    echo "Configuring zsh"
+    echo "Checking zshrc..."
     if [ ! -f ~/.zshrc ]; then
-        wget -c https://raw.githubusercontent.com/qvjp/Amazing2018/master/config/zsh/zshrc -O ~/.zshrc 1>>$LOG1 2>>$LOG2
+        echo "Downloading zshrc..."
+        wget -c https://raw.githubusercontent.com/qvjp/Amazing2018/master/config/zsh/zshrc -O ~/.zshr
         CheckStatus "$?" "zshrc" "$D_OWNLOAD"
     fi
-    chsh -s /bin/zsh 1>>$LOG1 2>>$LOG2
-    CheckStatus "$?" "chsh -s /bin/zsh" "$U_PDATE"
+
+    echo Checking Defalut Shell...
+    if [ ! $SHELL == /bin/zsh ]; then
+        chsh -s /bin/zsh
+        CheckStatus "$?" "chsh -s /bin/zsh" "$U_PDATE"
+    fi
 
     # 配置vim
-    echo "Configuring vim"
-    if [ ! -f ~/.vimrc ]; then
-        wget -c https://raw.githubusercontent.com/qvjp/Amazing2018/master/config/vim/vimrc -O ~/.vimrc 1>>$LOG1 2>>$LOG2
-        CheckStatus "$?" "vimrc" "$D_OWNLOAD"
-    fi
-    # vim插件目录
-    DIR_VIM_PLUGINS=~/.vim/pack/git-plugins/start
-    if [ ! -d $DIR_VIM_PLUGINS ]; then
-        mkdir -p "$DIR_VIM_PLUGINS" 2>>$LOG2
-        git clone https://github.com/w0rp/ale.git ~/.vim/pack/git-plugins/start/ale 1>>$LOG1 2>>$LOG2
-        CheckStatus "$?" "ale" "$D_OWNLOAD"
+    echo "Checking SpaceVim..."
+    if [ ! -d ~/.SpaceVim ]; then
+        echo "Downloading SpaceVim..."
+        curl -sLf https://spacevim.org/cn/install.sh | bash
+        CheckStatus "$?" "SpaceVim" "$D_OWNLOAD"
     fi
 
     # 配置git
-    echo "Configuring git"
+    echo "Configuring global git..."
     git config --global user.email "$UEMAIL"
     git config --global user.name "$UNAME"
 
-    echo "Necessary tools configuration is complete!"; echo
+    echo ============================================
+    echo "Necessary tools configuration is complete!"
+    echo ============================================
 
 }
 
 DownloadProjects()
 {
-    echo; echo "Downloading frequently used projects"
+    echo
+    echo ============================================
+    echo "Downloading frequently used projects"
+    echo ============================================
     mkdir -p ~/Programming
     for pro in $PROJECTS
     do
+        echo Checking $pro...
         if [ ! -d ~/Programming/$pro ]; then
-            git clone git@github.com:qvjp/$pro.git ~/Programming/$pro 1>>$LOG1 2>>$LOG2
+            git clone git@github.com:qvjp/$pro.git ~/Programming/$pro
             CheckStatus "$?" "$pro" "$D_OWNLOAD"
         fi
     done
 
-    echo "Frequently used projects download is complete!, go ~/Programming find them."; echo
+    echo =============================================================================
+    echo "Frequently used projects download is complete!, go ~/Programming find them."
+    echo =============================================================================
+    echo
 }
 
-LastWords()
+ConnectGithub()
 {
-    echo "最后一步，连接到Github"
     # 连接Github
-    ssh-keygen -t rsa -b 4096 -C "$UEMAIL"
-    eval "$(ssh-agent -s)"
-    ssh-add ~/.ssh/id_rsa
+    echo "最后一步，连接到Github"
+
+    if [ "$OS" == LINUE ]; then
+        ssh-keygen -t rsa -b 4096 -C "$UEMAIL"
+        eval "$(ssh-agent -s)"
+        ssh-add ~/.ssh/id_rsa
+    fi
+
+    if [ "$OS" == DARWIN ]; then
+        # 连接Github
+        ssh-keygen -t rsa -b 4096 -C "$UEMAIL"
+        eval "$(ssh-agent -s)"
+        echo -e "Host *\n AddKeysToAgent yes\n UseKeychain yes\n IdentityFile ~/.ssh/id_rsa" > ~/.ssh/config
+        ssh-add -K ~/.ssh/id_rsa
+        pbcopy < ~/.ssh/id_rsa.pub
+    fi
 
     echo
     echo "已全部安装配置完成"
@@ -155,11 +194,6 @@ LastWords()
     echo
 }
 
-# 下载常用项目
-if [ ! -z "$DOWNPRO" ]; then
-    DownloadProjects
-    exit $E_OK
-fi
 
 # 支持macOS, Linux
 case "$OSTYPE" in
@@ -175,7 +209,7 @@ case "$OSTYPE" in
         InitLinux
         InitCommon
         OS=LINUX;;
-    Darwin*)
+    darwin*)
         echo "Your Operating system is Darwin"
         InitDarwin
         InitCommon
@@ -185,5 +219,14 @@ case "$OSTYPE" in
         exit $E_ERROR
 esac
 
-LastWords
 
+while getopts "pg" opt; do
+    case $opt in
+        p)
+            DownloadProjects
+        ;;
+        g)
+            ConnectGithub
+        ;;
+    esac
+done
