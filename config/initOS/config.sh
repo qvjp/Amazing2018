@@ -20,6 +20,14 @@ D_OWNLOAD="Download"
 # 输出日志
 LOG1=$CURRENT/log.log
 LOG2=$CURRENT/err.log
+fifolog=log.fifo
+fifoerr=err.fifo
+mkfifo $fifolog
+mkfifo $fifoerr
+cat $fifolog | tee $LOG1 &
+cat $fifoerr | tee $LOG2 &
+exec 1>$fifolog
+exec 2>$fifoerr
 
 # 必要工具
 NEC_TOOLS="wget cloc vim git zsh tree icdiff trash"
@@ -73,13 +81,16 @@ InitDarwin()
         CheckStatus "$?" "brew" "$I_NSTALL"
     fi
 
+    brew update
+    brew upgrade
+
     echo "Using brew doweload necessary tools "
     for tool in $NEC_TOOLS; do
         echo Checking $tool...
         if [ ! `which $tool` ]; then
             echo Downloading $tool
             brew install $tool
-            CheckStatus "$?" "brew install $NEC_TOOLS" "$I_NSTALL"
+            CheckStatus "$?" "brew install $tool" "$I_NSTALL"
         fi
     done
     echo "Necessary tools install is complete!"
@@ -114,7 +125,7 @@ InitCommon()
     echo "Checking zshrc..."
     if [ ! -f ~/.zshrc ]; then
         echo "Downloading zshrc..."
-        wget -c https://raw.githubusercontent.com/qvjp/Amazing2018/master/config/zsh/zshrc -O ~/.zshr
+        wget -c https://raw.githubusercontent.com/qvjp/Amazing2018/master/config/zsh/zshrc -O ~/.zshrc
         CheckStatus "$?" "zshrc" "$D_OWNLOAD"
     fi
 
@@ -230,3 +241,5 @@ while getopts "pg" opt; do
         ;;
     esac
 done
+
+/bin/rm -rf $fifolog $fifoerr
