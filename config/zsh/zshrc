@@ -151,3 +151,6 @@ IFS=$old_IFS
 alias rm="trash -F"
 
 alias git='LANG=en_GB git'
+
+# 防止git log等显示中文不正常
+export LESSCHARSET=utf-8
