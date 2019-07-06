@@ -1,13 +1,35 @@
 #!/bin/bash
 
+# 必要工具
+NEC_TOOLS="wget cloc vim git zsh tree icdiff"
+NEC_TOOLS_LINUX=${NEC_TOOLS}" nload"
+NEC_TOOLS_MAC=${NEC_TOOLS}" trash"
+
+# 常用项目
+PROJECTS="INLOW Amazing2018 Playground"
+GITHUBNAME="qvjp"
+
+# Git 配置所用邮箱
+UEMAIL="qvjunping@gmail.com"
+UNAME="Qv Junping"
+
 E_ERROR=65    # 安装失败
 E_OK=0
 ROOT_UID=0
 
+Exit()
+{
+    /bin/rm -rf $fifolog $fifoerr
+    if [ "$1" == "$E_OK" ]; then
+        exit $E_OK;
+    fi
+    exit $E_ERROR
+}
+
 if [ "$UID"  == "$ROOT_UID" ]
 then
     echo "Only normal user can run this script!"
-    exit $E_ERROR
+    Exit
 fi
 
 CURRENT=`pwd`
@@ -29,15 +51,6 @@ cat $fifoerr | tee $LOG2 &
 exec 1>$fifolog
 exec 2>$fifoerr
 
-# 必要工具
-NEC_TOOLS="wget cloc vim git zsh tree icdiff trash"
-
-# 常用项目
-PROJECTS="INLOW Amazing2018 Playground TODO"
-
-# Git 配置所用邮箱
-UEMAIL="qvjunping@gmail.com"
-UNAME="Qv Junping"
 
 # Operating System
 OS=DARWIN
@@ -60,7 +73,7 @@ CheckStatus()
         echo "$2 $3 Success." 
     else
         echo "$2 $3 Fail."
-        exit $E_ERROR
+        Exit
     fi
 }
 
@@ -85,7 +98,7 @@ InitDarwin()
     brew upgrade
 
     echo "Using brew doweload necessary tools "
-    for tool in $NEC_TOOLS; do
+    for tool in $NEC_TOOLS_MAC; do
         echo Checking $tool...
         if [ ! `which $tool` ]; then
             echo Downloading $tool
@@ -109,9 +122,15 @@ InitLinux()
     # 必要工具
     echo "Initializing..."
     echo; echo "Installding necessary tools"
-    echo "Installing $NEC_TOOLS"
-    $PKGINS install $NEC_TOOLS -y
-    CheckStatus "$?" "yum install $NEC_TOOLS" "$I_NSTALL"
+    echo "Installing $NEC_TOOLS_LINUX"
+    for tool in $NEC_TOOLS_LINUX; do
+        echo Checking $tool...
+        if [ ! `which $tool` ]; then
+            echo Downloading $tool
+            sudo $PKGINS install $tool -y
+            CheckStatus "$?" "$PKGINS install $tool" "$I_NSTALL"
+        fi
+    done
     echo "Necessary tools install is complete!"; echo
 }
 
@@ -137,7 +156,7 @@ InitCommon()
 
     # 配置vim
     echo "Checking SpaceVim..."
-    if [ ! -d ~/.SpaceVim ]; then
+    if [  -d ~/.SpaceVim ]; then
         echo "Downloading SpaceVim..."
         curl -sLf https://spacevim.org/cn/install.sh | bash
         CheckStatus "$?" "SpaceVim" "$D_OWNLOAD"
@@ -154,6 +173,32 @@ InitCommon()
 
 }
 
+# 支持macOS, Linux
+work()
+{
+    case "$OSTYPE" in
+        linux* )
+            if [ -f /etc/redhat-release ]; then
+                DistroBasedOn="RedHat"
+            elif [ -f /etc/debian_version ]; then
+                DistroBasedOn="Debian"
+            elif [ -f /etc/SuSE-release ]; then
+                DistroBasedOn="SuSe"
+            fi
+            echo "Your Operating system is $DistroBasedOn Based Linux"
+            InitLinux
+            InitCommon
+            OS=LINUX;;
+        darwin*)
+            echo "Your Operating system is Darwin"
+            InitDarwin
+            InitCommon
+            OS=DARWIN;;
+        *)
+            echo "Unknown: $OSTYPE"
+            Exit
+    esac
+}
 DownloadProjects()
 {
     echo
@@ -165,7 +210,7 @@ DownloadProjects()
     do
         echo Checking $pro...
         if [ ! -d ~/Programming/$pro ]; then
-            git clone git@github.com:qvjp/$pro.git ~/Programming/$pro
+            git clone git@github.com:$GITHUBNAME/$pro.git ~/Programming/$pro
             CheckStatus "$?" "$pro" "$D_OWNLOAD"
         fi
     done
@@ -181,7 +226,7 @@ ConnectGithub()
     # 连接Github
     echo "最后一步，连接到Github"
 
-    if [ "$OS" == LINUE ]; then
+    if [ "$OS" == LINUX ]; then
         ssh-keygen -t rsa -b 4096 -C "$UEMAIL"
         eval "$(ssh-agent -s)"
         ssh-add ~/.ssh/id_rsa
@@ -197,7 +242,6 @@ ConnectGithub()
     fi
 
     echo
-    echo "已全部安装配置完成"
     echo
     echo "========================================================="
     echo "记得将~/.ssh/id_rsa.pub粘贴到Github，macOS用户可直接粘贴"
@@ -205,41 +249,59 @@ ConnectGithub()
     echo
 }
 
+help(){
+    echo "Usage:
+    `basename $0` options    选择要初始化的功能
 
-# 支持macOS, Linux
-case "$OSTYPE" in
-    linux* )
-        if [ -f /etc/redhat-release ]; then
-            DistroBasedOn="RedHat"
-        elif [ -f /etc/debian_version ]; then
-            DistroBasedOn="Debian"
-        elif [ -f /etc/SuSE-release ]; then
-            DistroBasedOn="SuSe"
-        fi
-        echo "Your Operating system is $DistroBasedOn Based Linux"
-        InitLinux
-        InitCommon
-        OS=LINUX;;
-    darwin*)
-        echo "Your Operating system is Darwin"
-        InitDarwin
-        InitCommon
-        OS=DARWIN;;
-    *)
-        echo "Unknown: $OSTYPE"
-        exit $E_ERROR
-esac
+Options:
+    -o, only          初始化配置电脑
+    -p, project       下载已配置项目
+    -g, github        连接你的Github
+
+先打开本文件，在文件头配置自已要安装的软件、要clone的Github项目。
+macOS、Linux（Debain、Redhat及衍生版）可用。
+
+macOS:
+    更新系统自带软件
+    安装xcode-select
+    安装Homebrew
+    用Homebrew安装自已配置列表中的软件
+
+Linux:
+    使用系统自带包管理器安装配置列表软件
+
+公共:
+    安装并配置zsh，最终作为默认shell
+    安装vim，并使用SpaceVim
+    配置本地git
+    "
+    Exit
+}
 
 
-while getopts "pg" opt; do
+if [ $# -lt 1 ]; then
+    help
+fi
+
+while getopts "opg" opt; do
     case $opt in
         p)
+            work
             DownloadProjects
-        ;;
+            ;;
         g)
+            work
             ConnectGithub
-        ;;
+            ;;
+        o)
+            work
+            ;;
+        *)
+            help
+            ;;
     esac
 done
 
-/bin/rm -rf $fifolog $fifoerr
+echo "已全部安装配置完成"
+
+Exit $E_OK
