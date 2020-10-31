@@ -11,6 +11,8 @@
     "window.title": "${appName}${separator}${activeEditorMedium}",
     "terminal.integrated.shell.osx": "/bin/zsh",
     "tabnine.experimentalAutoImports": true,
-    "window.titleBarStyle": "custom"
+    "window.titleBarStyle": "custom",
+    "editor.fontFamily": "'hack nerd font'",
+    "editor.fontSize": 18
 }
 
