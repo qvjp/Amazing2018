@@ -7,8 +7,10 @@
     "explorer.confirmDelete": false,
     "files.autoSave": "onFocusChange",
     "explorer.confirmDragAndDrop": false,
-    "markdown.extension.showExplorer":true,
     "workbench.editor.labelFormat": "medium",
     "window.title": "${appName}${separator}${activeEditorMedium}",
-    "terminal.integrated.shell.osx": "/bin/zsh"
+    "terminal.integrated.shell.osx": "/bin/zsh",
+    "tabnine.experimentalAutoImports": true,
+    "window.titleBarStyle": "custom"
 }
+
